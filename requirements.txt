@@ -1,0 +1,5 @@
+wordcloud 
+matplotlib 
+pysrt 
+nltk
+whisper-live
