@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  whisper-web-client:
+    image: 192.168.8.129:32000/whisper-web-client:1.0.38
+    build: .
+    container_name: whisper-web-client
+    restart: unless-stopped
+    ports:
+      - "80:80"

@@ -22,3 +22,10 @@ pip install -r requirements.txt
 #in console window #2
 conda activate wenv
 python run_client.py
+
+
+
+#deploy web-client
+cd whisper-web-client
+docker compose build
+docker push 192.168.8.129:32000/whisper-web-client:1.0.15
