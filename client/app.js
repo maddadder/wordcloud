@@ -51,8 +51,8 @@ function updateDebugInfo() {
         `Last Chunk Size: ${audioStats.lastChunkSize} samples\n` +
         `Min Amp: ${audioStats.minAmplitude.toFixed(6)}\n` +
         `Max Amp: ${audioStats.maxAmplitude.toFixed(6)}\n` +
-        `Sample Rate: ${audioStats.sampleRate} Hz → 16000 Hz\n` +
-        `${firstChunkPreview}`;
+        `Sample Rate: ${audioStats.sampleRate} Hz → 16000 Hz\n`;// +
+        //`${firstChunkPreview}`;
 }
 
 // Format time for SRT file

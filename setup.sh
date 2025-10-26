@@ -26,6 +26,6 @@ python run_client.py
 
 
 #deploy web-client
-cd whisper-web-client
+cd client
 docker compose build
-docker push 192.168.8.129:32000/whisper-web-client:1.0.15
+docker push 192.168.8.129:32000/whisper-web-client:1.0.39
