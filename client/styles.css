@@ -121,6 +121,17 @@ h1 {
     overflow-y: auto;
 }
 
+#translated {
+    font-size: 1.4rem;
+    line-height: 1.7;
+    min-height: 150px;
+    background: rgba(30, 30, 50, 0.5);
+    padding: 15px;
+    border-radius: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
 .status-bar {
     display: flex;
     justify-content: space-between;

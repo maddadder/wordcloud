@@ -3,7 +3,9 @@
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const downloadBtn = document.getElementById('downloadBtn');
+const downloadTranslationBtn = document.getElementById('downloadTranslationBtn');
 const transcriptDiv = document.getElementById('transcript');
+const translatedDiv = document.getElementById('translated');
 const statusEl = document.getElementById('status');
 const connectionEl = document.getElementById('connection');
 const visualizer = document.getElementById('visualizer');
@@ -22,9 +24,8 @@ for (let i = 0; i < 64; i++) {
 }
 
 // Configuration
-const SERVER_URL = "wss://whisper-live.leenet.link";
-const MODEL = "openai/whisper-medium";
-const LANGUAGE = "en";
+const SERVER_URL = "wss://whisper-live.dankapps.app";
+const MODEL = "openai/large-v3-turbo";
 const USE_VAD = true;
 
 // Audio statistics
@@ -39,6 +40,7 @@ const audioStats = {
 
 // Transcript storage for SRT file
 const transcriptSegments = [];
+const translatedSegments = [];
 let recordingStartTime = 0;
 
 function updateDebugInfo() {
@@ -89,6 +91,31 @@ function generateSRT() {
     return srtContent;
 }
 
+
+// Generate SRT file content
+function generateTranslatedSRT() {
+    let srtContent = '';
+    let index = 1;
+    
+    for (const segment of translatedSegments) {
+        // Check if segment has start and end times
+        if (segment.start !== undefined && segment.end !== undefined) {
+            srtContent += `${index}\n`;
+            srtContent += `${formatTime(segment.start)} --> ${formatTime(segment.end)}\n`;
+            srtContent += `${segment.text}\n\n`;
+            index++;
+        } else if (segment.text) {
+            // For messages without timestamps, create a generic segment
+            srtContent += `${index}\n`;
+            srtContent += `00:00:00,000 --> 00:00:00,000\n`;
+            srtContent += `${segment.text}\n\n`;
+            index++;
+        }
+    }
+    
+    return srtContent;
+}
+
 // Download SRT file
 function downloadSRT() {
     const srtContent = generateSRT();
@@ -108,13 +135,35 @@ function downloadSRT() {
     }, 100);
 }
 
+
+// Download SRT file
+function downloadTranslatedSRT() {
+    const srtContent = generateTranslatedSRT();
+    const blob = new Blob([srtContent], { type: 'text/srt' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `translation-${new Date().toISOString().replace(/[:.]/g, '-')}.srt`;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Clean up
+    setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }, 100);
+}
+
 // Start recording
 async function startRecording() {
     try {
         // Reset transcript
         transcriptSegments.length = 0;
+        translatedSegments.length = 0;
         transcriptDiv.innerHTML = "<p>Listening...</p>";
-        
+        translatedDiv.innerHTML = "<p>Waiting...</p>"
+
         // Reset stats
         audioStats.chunksSent = 0;
         audioStats.lastChunkSize = 0;
@@ -125,6 +174,7 @@ async function startRecording() {
         
         statusEl.textContent = "Status: Initializing...";
         downloadBtn.disabled = true;
+        downloadTranslationBtn.disabled = true;
         
         // Create audio context
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -192,7 +242,7 @@ async function startRecording() {
                 
                 updateDebugInfo();
                 
-                // Send the raw float32 data to the server
+                // Send the raw float16 data to the server
                 websocket.send(audioData.buffer);
             }
             else if (event.data.type === 'volume') {
@@ -216,15 +266,20 @@ async function startRecording() {
             statusEl.textContent = "Status: Sending configuration...";
             startBtn.disabled = true;
             stopBtn.disabled = false;
-            
+            const languageSelect = document.getElementById('languageSelect');
+            const translateEnabled = document.getElementById('translateEnabled');
+
             // Send configuration
             websocket.send(JSON.stringify({
                 uid: `client-${Date.now()}`,
                 model: MODEL,
-                task: 'transcribe',
-                language: LANGUAGE,
+                task: translateEnabled.checked ? 'translate' : 'transcribe',
+                translate: translateEnabled.checked,
+                language: languageSelect.value,
                 use_vad: USE_VAD,
-                audio_format: 'float32' // Tell server we're sending float32
+                audio_format: 'float16',
+                enable_translation: translateEnabled.checked,
+                target_language:"en"
             }));
         };
         
@@ -267,18 +322,32 @@ async function startRecording() {
                     
                     transcriptDiv.innerHTML = `<p>${fullText.trim()}</p>`;
                 }
-                else if (data.text) {
-                    // Handle single transcript
-                    transcriptDiv.innerHTML = `<p>${data.text}</p>`;
+
+                // Handle translated segments
+                if (data.translated_segments && data.translated_segments.length > 0) {
+                    let fullText = "";
                     
-                    // Store for SRT with approximate timing
-                    const elapsedSeconds = (Date.now() - recordingStartTime) / 1000;
-                    transcriptSegments.push({
-                        start: elapsedSeconds - 2, // Approximate 2 seconds for the phrase
-                        end: elapsedSeconds,
-                        text: data.text
-                    });
+                    // Store segments for SRT file
+                    for (const segment of data.translated_segments) {
+                        if (segment.text) {
+                            // Calculate relative time from recording start
+                            const elapsedSeconds = (Date.now() - recordingStartTime) / 1000;
+                            segment.absoluteStart = elapsedSeconds - (segment.end - segment.start);
+                            segment.absoluteEnd = elapsedSeconds;
+                            
+                            translatedSegments.push({
+                                start: segment.absoluteStart,
+                                end: segment.absoluteEnd,
+                                text: segment.text
+                            });
+                            
+                            fullText += segment.text + " ";
+                        }
+                    }
+                    
+                    translatedDiv.innerHTML = `<p>${fullText.trim()}</p>`;
                 }
+
             } catch (e) {
                 console.error("Error parsing message:", e);
             }
@@ -294,6 +363,7 @@ async function startRecording() {
             connectionEl.textContent = "Connection: Closed";
             statusEl.textContent = "Status: Disconnected";
             downloadBtn.disabled = false;
+            downloadTranslationBtn.disabled = false;
         };
         
     } catch (error) {
@@ -338,6 +408,7 @@ function stopRecording() {
         
         // Enable download button
         downloadBtn.disabled = false;
+        downloadTranslationBtn.disabled = false;
         
     } catch (error) {
         statusEl.textContent = `Error stopping: ${error.message}`;
@@ -349,6 +420,7 @@ function stopRecording() {
 startBtn.addEventListener('click', startRecording);
 stopBtn.addEventListener('click', stopRecording);
 downloadBtn.addEventListener('click', downloadSRT);
+downloadTranslationBtn.addEventListener('click', downloadTranslatedSRT);
 
 // Display client version
 const versionInfo = document.createElement('div');

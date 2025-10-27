@@ -32,7 +32,7 @@ class AudioProcessor extends AudioWorkletProcessor {
             const resampledData = this.resample(chunkBuffer);
             
             if (resampledData.length > 0) {
-                // Send resampled float32 data to main thread
+                // Send resampled float16 data to main thread
                 this.port.postMessage({
                     type: 'audioData',
                     data: resampledData
