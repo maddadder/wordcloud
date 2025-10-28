@@ -266,8 +266,9 @@ async function startRecording() {
             statusEl.textContent = "Status: Sending configuration...";
             startBtn.disabled = true;
             stopBtn.disabled = false;
-            const languageSelect = document.getElementById('languageSelect');
+            const inputLanguageSelect = document.getElementById('inputLanguageSelect');
             const translateEnabled = document.getElementById('translateEnabled');
+            const outputLanguageSelect = document.getElementById('outputLanguageSelect');
 
             // Send configuration
             websocket.send(JSON.stringify({
@@ -275,11 +276,11 @@ async function startRecording() {
                 model: MODEL,
                 task: translateEnabled.checked ? 'translate' : 'transcribe',
                 translate: translateEnabled.checked,
-                language: languageSelect.value,
+                language: inputLanguageSelect.value,
                 use_vad: USE_VAD,
                 audio_format: 'float16',
                 enable_translation: translateEnabled.checked,
-                target_language:"en"
+                target_language: outputLanguageSelect.value
             }));
         };
         
